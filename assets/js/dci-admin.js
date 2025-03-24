@@ -96,7 +96,7 @@ jQuery(document).ready(function($) {
                 if (conn.load === 'medium') stroke = 'orange';
                 if (conn.load === 'high') stroke = 'red';
 
-                svg.append(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="2" stroke-dasharray="5" />`);
+                svg.append(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="2" />`);
             }
         });
     });

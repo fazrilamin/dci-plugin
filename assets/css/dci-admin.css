@@ -1,4 +1,3 @@
-
 #dci-admin-preview {
     position: relative;
     width: 400px;
@@ -11,7 +10,7 @@
     position: absolute;
     width: 100%;
     height: 100%;
-    z-index: 0;
+    z-index: 5; /* Elevated to be above grid overlay but below nodes */
 }
 #dci-preview-nodes div {
     position: absolute;
@@ -35,4 +34,5 @@
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
     background: repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(0,0,0,0.1) 30px);
+    z-index: 1;
 }
