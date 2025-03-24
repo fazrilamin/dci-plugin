@@ -48,7 +48,7 @@ function dci_settings_page() {
 ?>
 <div class="wrap">
     <h1>DCI Plugin - Manage Nodes & Connections</h1>
-    <form method="post" action="options.php">
+    <form method="post" action="options.php"><?php wp_nonce_field("dci_plugin_admin_action", "dci_plugin_nonce"); ?>
         <?php settings_fields('dci-settings-group'); do_settings_sections('dci-settings-group'); ?>
 
         <h4>Enable Debug Mode? 
@@ -103,6 +103,8 @@ function dci_settings_page() {
                 </div>
             <?php $j++; endforeach; ?>
         </div>
+        <?php
+        if ( isset($_POST["dci_plugin_nonce"]) && !wp_verify_nonce($_POST["dci_plugin_nonce"], "dci_plugin_admin_action") ) { wp_die("Security check failed."); } ?>
         <?php submit_button(); ?>
     </form>
 
