@@ -1,10 +1,10 @@
 # DCI Plugin
 
 **Author:** Fazril Amin  
-**Version:** v1.0.0
+**Version:** v1.2.1.9 hotfix 1
 
 ## Description
-DCI Plugin is a WordPress plugin to visualize animated connection lines between static data center nodes, simulating real-time data flows.
+DCI Plugin is a WordPress plugin to visualize animated connection lines between static data centre nodes, simulating real-time data flows.
 
 ## Features
 - Animated SVG lines for flowing data.

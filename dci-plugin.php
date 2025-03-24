@@ -1,8 +1,8 @@
 <?php
 /*
 Plugin Name: DCI Plugin
-Description: Visualize animated connection lines between data center nodes with admin panel and frontend shortcode.
-Version: 1.2.1.4
+Description: Visualize animated connection lines between data center nodes with persistent data saving and debug mode.
+Version: 1.2.1.9
 Author: Fazril Amin
 */
 
@@ -29,29 +29,38 @@ add_action('admin_menu', 'dci_register_settings_page');
 function dci_register_settings() {
     register_setting('dci-settings-group', 'dci_nodes');
     register_setting('dci-settings-group', 'dci_connections');
+    register_setting('dci-settings-group', 'dci_debug_mode');
 }
 add_action('admin_init', 'dci_register_settings');
 
-// Add Settings link in Plugins page
-function dci_plugin_action_links($links) {
+// Add "Settings" link
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), function($links) {
     $settings_link = '<a href="admin.php?page=dci-plugin">Settings</a>';
     array_unshift($links, $settings_link);
     return $links;
-}
-add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'dci_plugin_action_links');
+});
 
-// Admin panel page content
+// Admin Panel
 function dci_settings_page() {
     $nodes = get_option('dci_nodes', []);
     $connections = get_option('dci_connections', []);
+    $debug_mode = get_option('dci_debug_mode', 0);
 ?>
 <div class="wrap">
     <h1>DCI Plugin - Manage Nodes & Connections</h1>
     <form method="post" action="options.php">
         <?php settings_fields('dci-settings-group'); do_settings_sections('dci-settings-group'); ?>
+
+        <h4>Enable Debug Mode? 
+            <select name="dci_debug_mode">
+                <option value="0" <?php selected($debug_mode, 0); ?>>No</option>
+                <option value="1" <?php selected($debug_mode, 1); ?>>Yes</option>
+            </select>
+        </h4>
+
         <div id="nodes-wrapper" class="card-section">
             <h3>Data Center Nodes <button type="button" id="add-node">Add Node</button></h3>
-            <?php foreach ($nodes as $i => $node): ?>
+            <?php $i = 0; foreach ($nodes as $node): ?>
                 <div class="node-block">
                     Name: <input type="text" name="dci_nodes[<?php echo $i; ?>][name]" value="<?php echo esc_attr($node['name']); ?>" />
                     Location: <input type="text" name="dci_nodes[<?php echo $i; ?>][location]" value="<?php echo esc_attr($node['location']); ?>" />
@@ -61,15 +70,15 @@ function dci_settings_page() {
                     Size: <input type="number" name="dci_nodes[<?php echo $i; ?>][size]" value="<?php echo isset($node['size']) ? esc_attr($node['size']) : '30'; ?>" />
                     <button type="button" class="remove-node">Remove</button>
                 </div>
-            <?php endforeach; ?>
+            <?php $i++; endforeach; ?>
         </div>
 
         <div id="connections-wrapper" class="card-section">
             <h3>Connections <button type="button" id="add-connection">Add Connection</button></h3>
-            <?php foreach ($connections as $i => $conn): ?>
+            <?php $j = 0; foreach ($connections as $conn): ?>
                 <div class="conn-block">
                     From: 
-                    <select name="dci_connections[<?php echo $i; ?>][from]" class="node-select">
+                    <select name="dci_connections[<?php echo $j; ?>][from]" class="node-select">
                         <?php foreach ($nodes as $index => $node): ?>
                             <option value="<?php echo $index; ?>" <?php selected($conn['from'], $index); ?>>
                                 <?php echo esc_html($node['name']); ?>
@@ -77,7 +86,7 @@ function dci_settings_page() {
                         <?php endforeach; ?>
                     </select>
                     To:
-                    <select name="dci_connections[<?php echo $i; ?>][to]" class="node-select">
+                    <select name="dci_connections[<?php echo $j; ?>][to]" class="node-select">
                         <?php foreach ($nodes as $index => $node): ?>
                             <option value="<?php echo $index; ?>" <?php selected($conn['to'], $index); ?>>
                                 <?php echo esc_html($node['name']); ?>
@@ -85,14 +94,14 @@ function dci_settings_page() {
                         <?php endforeach; ?>
                     </select>
                     Load:
-                    <select name="dci_connections[<?php echo $i; ?>][load]">
+                    <select name="dci_connections[<?php echo $j; ?>][load]">
                         <option value="low" <?php selected($conn['load'], 'low'); ?>>Low</option>
                         <option value="medium" <?php selected($conn['load'], 'medium'); ?>>Medium</option>
                         <option value="high" <?php selected($conn['load'], 'high'); ?>>High</option>
                     </select>
                     <button type="button" class="remove-connection">Remove</button>
                 </div>
-            <?php endforeach; ?>
+            <?php $j++; endforeach; ?>
         </div>
         <?php submit_button(); ?>
     </form>
@@ -106,11 +115,14 @@ function dci_settings_page() {
 </div>
 <?php }
 
-// SHORTCODE also active
+// FIXED SHORTCODE OUTPUT
 function dci_render_map() {
     $nodes = get_option('dci_nodes', []);
     $connections = get_option('dci_connections', []);
-    ob_start(); ?>
+    $debug = get_option('dci_debug_mode', 0);
+    ob_start();
+    if ($debug) { echo '<pre style="background:#f0f0f0;">DEBUG:<br>'; print_r($nodes); print_r($connections); echo '</pre>'; }
+?>
     <div class="dci-map">
         <?php foreach($nodes as $i => $node): 
             $size = isset($node['size']) ? intval($node['size']) : 30; ?>
@@ -120,20 +132,18 @@ function dci_render_map() {
         <?php endforeach; ?>
         <svg class="dci-lines">
             <?php foreach($connections as $conn): 
-                $from = $nodes[$conn['from']];
-                $to = $nodes[$conn['to']];
+                $from = $nodes[$conn['from']] ?? null;
+                $to = $nodes[$conn['to']] ?? null;
+                if (!$from || !$to) continue;
                 $from_size = isset($from['size']) ? intval($from['size']) : 30;
                 $to_size = isset($to['size']) ? intval($to['size']) : 30;
+                $color = 'green'; if ($conn['load'] === 'medium') $color = 'orange'; if ($conn['load'] === 'high') $color = 'red';
             ?>
-                <line data-load="<?php echo esc_attr($conn['load']); ?>"
-                      x1="<?php echo $from['left'] + $from_size/2; ?>"
-                      y1="<?php echo $from['top'] + $from_size/2; ?>"
-                      x2="<?php echo $to['left'] + $to_size/2; ?>"
-                      y2="<?php echo $to['top'] + $to_size/2; ?>" />
+                <line stroke="<?php echo $color; ?>" x1="<?php echo $from['left'] + $from_size/2; ?>" y1="<?php echo $from['top'] + $from_size/2; ?>"
+                      x2="<?php echo $to['left'] + $to_size/2; ?>" y2="<?php echo $to['top'] + $to_size/2; ?>" stroke-width="2" stroke-dasharray="5" />
             <?php endforeach; ?>
         </svg>
     </div>
-    <?php return ob_get_clean();
-}
+<?php return ob_get_clean(); }
 add_shortcode('dci_map', 'dci_render_map');
 ?>
