@@ -3,20 +3,9 @@
     position: relative;
     width: 400px;
     height: 300px;
-    background: #0b0b0b;
+    background: #fff;
     border: 1px solid #333;
     margin: 20px 0;
-}
-#dci-preview-nodes div {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    background: #0ff;
-    border-radius: 50%;
-    font-size: 8px;
-    text-align: center;
-    color: #fff;
-    line-height: 20px;
 }
 #dci-preview-lines {
     position: absolute;
@@ -24,10 +13,26 @@
     height: 100%;
     z-index: 0;
 }
+#dci-preview-nodes div {
+    position: absolute;
+    border-radius: 50%;
+    background: #0ff;
+    text-align: center;
+    color: #000;
+    font-size: 8px;
+    line-height: 20px;
+    z-index: 10;
+}
+#dci-preview-nodes .pulse {
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 5px rgba(0,255,255,0.5); }
+    50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 15px rgba(0,255,255,0.8); }
+    100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 5px rgba(0,255,255,0.5); }
+}
 .grid-overlay {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(255,255,255,0.1) 30px);
+    background: repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(0,0,0,0.1) 30px);
 }
-.node-block, .conn-block { margin-bottom: 10px; padding: 10px; background: #f7f7f7; }
-.remove-node, .remove-connection { margin-left: 5px; }
