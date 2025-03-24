@@ -1,80 +1,103 @@
 <?php
 /*
 Plugin Name: DCI Plugin
-Description: Visualize animated connection lines between static data center nodes with admin settings.
-Version: 1.1.0
+Description: Visualize animated connection lines between data center nodes with dynamic admin form and live preview.
+Version: 1.2.0
 Author: Fazril Amin
 */
 
 if ( !defined( 'ABSPATH' ) ) exit;
 
-// Enqueue scripts and styles
 function dci_enqueue_assets() {
     wp_enqueue_style('dci-style', plugin_dir_url(__FILE__) . 'assets/css/dci-style.css');
     wp_enqueue_script('dci-visualizer', plugin_dir_url(__FILE__) . 'assets/js/dci-visualizer.js', array('jquery'), null, true);
-    wp_localize_script('dci-visualizer', 'dciData', array(
-        'pulse' => get_option('dci_pulse_effect', 'yes')
-    ));
 }
 add_action('wp_enqueue_scripts', 'dci_enqueue_assets');
 
-// Admin menu
+// Admin assets
+function dci_admin_assets($hook) {
+    if ($hook != 'toplevel_page_dci-plugin') return;
+    wp_enqueue_style('dci-admin-style', plugin_dir_url(__FILE__) . 'assets/css/dci-admin.css');
+    wp_enqueue_script('dci-admin-js', plugin_dir_url(__FILE__) . 'assets/js/dci-admin.js', array('jquery'), null, true);
+}
+add_action('admin_enqueue_scripts', 'dci_admin_assets');
+
 function dci_register_settings_page() {
-    add_options_page('DCI Plugin Settings', 'DCI Plugin', 'manage_options', 'dci-plugin', 'dci_settings_page');
+    add_menu_page('DCI Plugin', 'DCI Plugin', 'manage_options', 'dci-plugin', 'dci_settings_page');
 }
 add_action('admin_menu', 'dci_register_settings_page');
 
-// Register settings
 function dci_register_settings() {
-    register_setting('dci-settings-group', 'dci_pulse_effect');
-    register_setting('dci-settings-group', 'dci_map_title');
+    register_setting('dci-settings-group', 'dci_nodes');
+    register_setting('dci-settings-group', 'dci_connections');
 }
 add_action('admin_init', 'dci_register_settings');
 
-// Settings page content
-function dci_settings_page() { ?>
-    <div class="wrap">
-        <h1>DCI Plugin Settings</h1>
-        <form method="post" action="options.php">
-            <?php settings_fields('dci-settings-group'); do_settings_sections('dci-settings-group'); ?>
-            <table class="form-table">
-                <tr valign="top">
-                    <th scope="row">Map Title</th>
-                    <td><input type="text" name="dci_map_title" value="<?php echo esc_attr(get_option('dci_map_title')); ?>" /></td>
-                </tr>
-                <tr valign="top">
-                    <th scope="row">Enable Pulse Effect?</th>
-                    <td>
-                        <select name="dci_pulse_effect">
-                            <option value="yes" <?php selected(get_option('dci_pulse_effect'), 'yes'); ?>>Yes</option>
-                            <option value="no" <?php selected(get_option('dci_pulse_effect'), 'no'); ?>>No</option>
-                        </select>
-                    </td>
-                </tr>
-            </table>
-            <?php submit_button(); ?>
-        </form>
+function dci_settings_page() {
+    $nodes = get_option('dci_nodes', []);
+    $connections = get_option('dci_connections', []);
+?>
+<div class="wrap">
+    <h1>DCI Plugin - Manage Nodes & Connections (Dynamic)</h1>
+    <form method="post" action="options.php">
+        <?php settings_fields('dci-settings-group'); do_settings_sections('dci-settings-group'); ?>
+        <div id="nodes-wrapper">
+            <h3>Data Center Nodes <button type="button" id="add-node">Add Node</button></h3>
+            <?php foreach ($nodes as $i => $node): ?>
+                <div class="node-block">
+                    Name: <input type="text" name="dci_nodes[<?php echo $i; ?>][name]" value="<?php echo esc_attr($node['name']); ?>" />
+                    Location: <input type="text" name="dci_nodes[<?php echo $i; ?>][location]" value="<?php echo esc_attr($node['location']); ?>" />
+                    Bandwidth: <input type="text" name="dci_nodes[<?php echo $i; ?>][bandwidth]" value="<?php echo esc_attr($node['bandwidth']); ?>" />
+                    Top: <input type="number" name="dci_nodes[<?php echo $i; ?>][top]" value="<?php echo esc_attr($node['top']); ?>" />
+                    Left: <input type="number" name="dci_nodes[<?php echo $i; ?>][left]" value="<?php echo esc_attr($node['left']); ?>" />
+                    <button type="button" class="remove-node">Remove</button>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div id="connections-wrapper">
+            <h3>Connections <button type="button" id="add-connection">Add Connection</button></h3>
+            <?php foreach ($connections as $i => $conn): ?>
+                <div class="conn-block">
+                    From: <input type="number" name="dci_connections[<?php echo $i; ?>][from]" value="<?php echo esc_attr($conn['from']); ?>" />
+                    To: <input type="number" name="dci_connections[<?php echo $i; ?>][to]" value="<?php echo esc_attr($conn['to']); ?>" />
+                    Load:
+                    <select name="dci_connections[<?php echo $i; ?>][load]">
+                        <option value="low" <?php selected($conn['load'], 'low'); ?>>Low</option>
+                        <option value="medium" <?php selected($conn['load'], 'medium'); ?>>Medium</option>
+                        <option value="high" <?php selected($conn['load'], 'high'); ?>>High</option>
+                    </select>
+                    <button type="button" class="remove-connection">Remove</button>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <?php submit_button(); ?>
+    </form>
+
+    <h3>Live Admin Preview</h3>
+    <div id="dci-admin-preview">
+        <svg id="dci-preview-lines"></svg>
+        <div id="dci-preview-nodes"></div>
+        <div class="grid-overlay"></div>
     </div>
+</div>
 <?php }
 
-// Shortcode to render map
 function dci_render_map() {
-    $map_title = esc_html(get_option('dci_map_title', 'Data Center Map'));
-    $nodes = [
-        ['top' => '90px', 'left' => '90px'],
-        ['top' => '90px', 'left' => '290px'],
-        ['top' => '240px', 'left' => '190px'],
-    ];
+    $nodes = get_option('dci_nodes', []);
+    $connections = get_option('dci_connections', []);
     ob_start(); ?>
     <div class="dci-map">
-        <h2 style="color: white; text-align:center;"><?php echo $map_title; ?></h2>
         <?php foreach($nodes as $i => $node): ?>
-            <div class="dci-node node-<?php echo $i+1; ?>" style="top:<?php echo $node['top']; ?>; left:<?php echo $node['left']; ?>;"></div>
+            <div class="dci-node" style="top:<?php echo $node['top']; ?>px; left:<?php echo $node['left']; ?>px;">
+                <span><?php echo esc_html($node['name']); ?><br><?php echo esc_html($node['bandwidth']); ?></span>
+            </div>
         <?php endforeach; ?>
         <svg class="dci-lines">
-            <line x1="100" y1="100" x2="300" y2="100" />
-            <line x1="300" y1="100" x2="200" y2="250" />
-            <line x1="200" y1="250" x2="100" y2="100" />
+            <?php foreach($connections as $conn): ?>
+                <line data-load="<?php echo esc_attr($conn['load']); ?>" x1="<?php echo $nodes[$conn['from']]['left'] + 25; ?>" y1="<?php echo $nodes[$conn['from']]['top'] + 25; ?>" x2="<?php echo $nodes[$conn['to']]['left'] + 25; ?>" y2="<?php echo $nodes[$conn['to']]['top'] + 25; ?>" />
+            <?php endforeach; ?>
         </svg>
     </div>
     <?php return ob_get_clean();
