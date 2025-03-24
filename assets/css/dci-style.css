@@ -13,18 +13,15 @@
     border-radius: 50%;
     background: #00f;
     position: absolute;
+}
+.dci-node.pulse {
     animation: pulse 2s infinite;
 }
-.node-1 { top: 90px; left: 90px; }
-.node-2 { top: 90px; left: 290px; }
-.node-3 { top: 240px; left: 190px; }
-
 @keyframes pulse {
     0% { transform: scale(1); opacity: 0.8; }
     50% { transform: scale(1.2); opacity: 1; }
     100% { transform: scale(1); opacity: 0.8; }
 }
-
 .dci-lines {
     position: absolute;
     top: 0;
@@ -35,10 +32,13 @@
 .dci-lines line {
     stroke: #0ff;
     stroke-width: 2;
-    stroke-dasharray: 4;
-    animation: dash 2s linear infinite;
+    stroke-dasharray: 5;
+    animation: dash 3s linear infinite, glow 1.5s ease-in-out infinite alternate;
 }
-
 @keyframes dash {
-    to { stroke-dashoffset: -8; }
+    to { stroke-dashoffset: -10; }
+}
+@keyframes glow {
+    from { stroke: #0ff; }
+    to { stroke: #0ff; filter: drop-shadow(0 0 6px #0ff); }
 }
